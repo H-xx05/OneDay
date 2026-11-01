@@ -1,5 +1,5 @@
 /* 一句话日记 - 离线缓存 Service Worker */
-const CACHE = 'yijuhua-v2';
+const CACHE = 'yijuhua-v3';
 const ASSETS = [
   './',
   './index.html',

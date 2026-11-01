@@ -127,6 +127,15 @@ h2.sec{font-size:16px;font-weight:700;margin:0 0 12px}
 .fb-text{font-size:16px;line-height:1.75}
 .empty-box{padding:26px 10px;text-align:center;font-size:14px;line-height:1.9;color:var(--ink2)}
 
+/* ---------- 全部 ---------- */
+.month-head{font-size:13px;font-weight:600;color:var(--ink2);margin:20px 2px 10px}
+#entry-list .month-head:first-child{margin-top:4px}
+.li{padding:13px 2px;cursor:pointer}
+.li + .li{border-top:1px solid var(--line)}
+.li:active{opacity:.6}
+.li-date{font-size:12.5px;color:var(--ink2);margin-bottom:4px}
+.li-text{font-size:16px;line-height:1.75;word-break:break-word}
+
 /* ---------- 底部导航 ---------- */
 #tabbar{
   position:fixed;bottom:0;left:50%;transform:translateX(-50%);
@@ -240,6 +249,11 @@ h2.sec{font-size:16px;font-weight:700;margin:0 0 12px}
       <h2 class="sec">那年今日</h2>
       <div id="flashback-list"></div>
     </section>
+
+    <!-- 全部 -->
+    <section id="view-list" class="view">
+      <div id="entry-list"></div>
+    </section>
   </main>
 
   <nav id="tabbar">
@@ -254,6 +268,10 @@ h2.sec{font-size:16px;font-weight:700;margin:0 0 12px}
     <button data-tab="memories">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
       回顾
+    </button>
+    <button data-tab="list">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      全部
     </button>
   </nav>
 
@@ -286,7 +304,9 @@ let entries = {}, settings = {};
 try { entries = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { entries = {}; }
 try { settings = JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) { settings = {}; }
 
+let listDirty = true;
 function persist() {
+  listDirty = true;
   try { localStorage.setItem(KEY, JSON.stringify(entries)); }
   catch (e) { toast('保存失败:浏览器存储不可用'); }
 }
@@ -324,6 +344,7 @@ function switchTab(name) {
   });
   if (name === 'calendar') { if (!selDay) selDay = todayStr(); renderCalendar(); showDayDetail(selDay); }
   if (name === 'memories') renderMemories();
+  if (name === 'list') renderList();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('#tabbar button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -502,6 +523,42 @@ function renderMemories() {
   }
 }
 
+/* ---------- 全部列表 ---------- */
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function renderList() {
+  if (!listDirty) return;
+  listDirty = false;
+  const box = $('#entry-list');
+  const days = Object.keys(entries).filter(hasEntry).sort().reverse();
+  if (!days.length) {
+    box.innerHTML = '<div class="card empty-box">还没有任何记录。回到「今天」,写下第一句。</div>';
+    return;
+  }
+  const parts = [];
+  let curMonth = '';
+  for (const ds of days) {
+    const m = ds.slice(0, 7);
+    if (m !== curMonth) {
+      if (curMonth) parts.push('</div>');
+      curMonth = m;
+      parts.push('<div class="month-head">' + Number(m.slice(0, 4)) + '年' + Number(m.slice(5, 7)) + '月</div><div class="card">');
+    }
+    const d = parseDay(ds);
+    const label = (d.getMonth() + 1) + '月' + d.getDate() + '日 星期' + WEEK[d.getDay()];
+    parts.push('<div class="li" data-day="' + ds + '"><div class="li-date">' + label + '</div><div class="li-text">' + esc(entries[ds].text.trim()) + '</div></div>');
+  }
+  if (curMonth) parts.push('</div>');
+  box.innerHTML = parts.join('');
+}
+$('#entry-list').addEventListener('click', e => {
+  const item = e.target.closest('.li');
+  if (!item) return;
+  selDay = item.dataset.day;
+  calY = Number(selDay.slice(0, 4));
+  calM = Number(selDay.slice(5, 7)) - 1;
+  switchTab('calendar');
+});
+
 /* ---------- 设置与备份 ---------- */
 const modal = $('#modal-settings');
 $('#btn-settings').addEventListener('click', () => { renderBackupInfo(); modal.classList.remove('hidden'); });
@@ -584,6 +641,7 @@ $('#btn-clear').addEventListener('click', () => {
   if (!confirm('再次确认:真的要清空吗?')) return;
   entries = {};
   localStorage.removeItem(KEY);
+  listDirty = true;
   renderToday(); renderCalendar(); if (selDay) showDayDetail(selDay); renderMemories();
   toast('已清空');
 });
