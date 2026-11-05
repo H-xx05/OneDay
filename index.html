@@ -154,6 +154,43 @@ h2.sec{font-size:16px;font-weight:700;margin:0 0 12px}
 #tabbar button svg{width:22px;height:22px}
 #tabbar button.on{color:var(--accent);font-weight:600}
 
+/* ---------- 隐私锁 ---------- */
+#lock-overlay{
+  position:fixed;inset:0;z-index:80;background:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;text-align:center;
+}
+#lock-overlay img{width:76px;height:76px;border-radius:20px}
+.lock-title{font-size:18px;font-weight:700;margin:16px 0 4px}
+.lock-sub{font-size:13px;color:var(--ink2);margin-bottom:20px}
+.lock-dots{display:flex;gap:12px;height:13px}
+.lock-dot{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink2)}
+.lock-dot.on{background:var(--accent);border-color:var(--accent)}
+.lock-pad{display:grid;grid-template-columns:repeat(3,74px);gap:12px;margin-top:22px;justify-content:center}
+.lock-key{
+  height:62px;border-radius:16px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink);font-size:22px;font-family:inherit;touch-action:manipulation;cursor:pointer;
+}
+.lock-key:active{background:var(--accent-soft)}
+.lock-blank{border:none;background:transparent}
+.lock-submit{
+  grid-column:1 / -1;height:50px;font-size:17px;font-weight:600;
+  background:var(--accent);border:none;color:#fff;touch-action:manipulation;
+}
+.lock-submit:active{opacity:.9}
+.lock-wait{color:var(--danger);font-size:13.5px;min-height:20px;margin-top:10px}
+.lock-forgot{
+  margin-top:8px;background:none;border:none;color:var(--ink2);font-size:14px;
+  text-decoration:underline;font-family:inherit;touch-action:manipulation;cursor:pointer;
+}
+.lock-close{
+  position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;
+  width:40px;height:40px;border:none;background:transparent;color:var(--ink2);
+  font-size:26px;border-radius:12px;touch-action:manipulation;cursor:pointer;
+}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:none}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
 /* ---------- 设置底部弹层 ---------- */
 .modal{
   position:fixed;inset:0;background:rgba(15,12,8,.45);z-index:60;
@@ -286,9 +323,44 @@ h2.sec{font-size:16px;font-weight:700;margin:0 0 12px}
       <button id="btn-copy-text" class="btn">📋 复制全部文字到剪贴板</button>
       <button id="btn-install" class="btn hidden">📲 安装到主屏幕</button>
       <p class="tip">iPhone:用 Safari 打开本页 → 点分享 → 「添加到主屏幕」,就能像 App 一样全屏使用。<br>Android:Chrome 菜单 → 「添加到主屏幕」或「安装应用」。</p>
+      <button id="btn-lock-setup" class="btn">🔒 开启隐私锁</button>
+      <div id="lock-manage" class="hidden">
+        <button id="btn-lock-change" class="btn">🔒 修改隐私锁 PIN</button>
+        <button id="btn-lock-off" class="btn">🔒 关闭隐私锁</button>
+      </div>
+      <p class="tip">隐私锁:每次打开应用需要输入 PIN,后台超过 3 分钟自动上锁。属轻度防护——只挡界面、不加密数据,忘记 PIN 可在锁屏上重置进入。</p>
       <button id="btn-clear" class="btn danger">清空全部数据</button>
       <div class="close-wrap"><button id="btn-close-settings" class="btn">关闭</button></div>
     </div>
+  </div>
+
+  <!-- 隐私锁 -->
+  <div id="lock-overlay" class="hidden">
+    <button id="btn-lock-close" class="lock-close hidden" aria-label="取消">×</button>
+    <img src="apple-touch-icon.png" alt="一句话日记">
+    <div class="lock-title" id="lock-title"></div>
+    <div class="lock-sub" id="lock-sub"></div>
+    <div class="lock-dots">
+      <span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span>
+      <span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span>
+    </div>
+    <div class="lock-wait" id="lock-wait"></div>
+    <div class="lock-pad" id="lock-pad">
+      <button class="lock-key" data-k="1">1</button>
+      <button class="lock-key" data-k="2">2</button>
+      <button class="lock-key" data-k="3">3</button>
+      <button class="lock-key" data-k="4">4</button>
+      <button class="lock-key" data-k="5">5</button>
+      <button class="lock-key" data-k="6">6</button>
+      <button class="lock-key" data-k="7">7</button>
+      <button class="lock-key" data-k="8">8</button>
+      <button class="lock-key" data-k="9">9</button>
+      <span class="lock-key lock-blank"></span>
+      <button class="lock-key" data-k="0">0</button>
+      <button class="lock-key" data-k="del" aria-label="删除一位">⌫</button>
+      <button id="lock-submit" class="lock-submit">解锁</button>
+    </div>
+    <button id="btn-lock-forgot" class="lock-forgot hidden">忘记 PIN?</button>
   </div>
 
   <div id="toast" role="status"></div>
@@ -561,7 +633,7 @@ $('#entry-list').addEventListener('click', e => {
 
 /* ---------- 设置与备份 ---------- */
 const modal = $('#modal-settings');
-$('#btn-settings').addEventListener('click', () => { renderBackupInfo(); modal.classList.remove('hidden'); });
+$('#btn-settings').addEventListener('click', () => { renderBackupInfo(); renderLockSettings(); modal.classList.remove('hidden'); });
 $('#btn-close-settings').addEventListener('click', () => modal.classList.add('hidden'));
 modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
 
@@ -646,6 +718,128 @@ $('#btn-clear').addEventListener('click', () => {
   toast('已清空');
 });
 
+/* ---------- 隐私锁(界面锁,轻度防护) ---------- */
+const LOCK_MAX_WRONG = 5, LOCK_WAIT_MS = 30000;
+let unlocked = false, lockWrong = 0, lockWaitUntil = 0, lockWaitTimer = null;
+
+function runInitialRenders() { renderToday(); renderMemories(); }
+function randHex(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(b => b.toString(16).padStart(2, '0')).join(''); }
+async function pinHash(pin, salt) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function verifyPin(pin) {
+  const l = settings.lock;
+  return !l || (await pinHash(pin, l.s)) === l.h;
+}
+
+let lockEntry = '';
+const lockEl = $('#lock-overlay');
+const LockUI = {
+  mode: null, first: null,
+  open(mode) {
+    this.mode = mode; this.first = null; lockEntry = '';
+    $('#lock-wait').textContent = '';
+    $('#btn-lock-forgot').classList.toggle('hidden', mode !== 'unlock');
+    $('#btn-lock-close').classList.toggle('hidden', mode === 'unlock');
+    this.render();
+    lockEl.classList.remove('hidden');
+  },
+  close() { lockEl.classList.add('hidden'); this.mode = null; this.first = null; lockEntry = ''; this.dots(); },
+  render() {
+    let t, s;
+    if (this.mode === 'setup') {
+      t = this.first === null ? '设置新 PIN(4-6 位)' : '再输入一次确认';
+      s = this.first === null ? '之后每次打开应用都需要输入' : '两次输入需一致';
+    } else if (this.mode === 'unlock') { t = '输入 PIN 解锁'; s = '隐私锁已开启'; }
+    else if (this.mode === 'verify-change') { t = '输入当前 PIN'; s = '修改隐私锁 PIN'; }
+    else if (this.mode === 'verify-off') { t = '输入当前 PIN'; s = '关闭隐私锁'; }
+    $('#lock-title').textContent = t || '';
+    $('#lock-sub').textContent = s || '';
+    $('#lock-submit').textContent = this.mode === 'unlock' ? '解锁' : '确定';
+    this.dots();
+  },
+  dots() {
+    document.querySelectorAll('.lock-dot').forEach((d, i) => d.classList.toggle('on', i < lockEntry.length));
+  },
+  key(k) {
+    if (Date.now() < lockWaitUntil) return;
+    if (k === 'del') { lockEntry = lockEntry.slice(0, -1); this.dots(); return; }
+    if (lockEntry.length >= 6) return;
+    lockEntry += k; this.dots();
+  },
+  shake() {
+    lockEl.classList.remove('shake'); void lockEl.offsetWidth; lockEl.classList.add('shake');
+    lockEntry = ''; this.dots();
+  }
+};
+
+async function lockSubmit() {
+  if (Date.now() < lockWaitUntil) return;
+  if (lockEntry.length < 4) { toast('PIN 至少 4 位'); return; }
+  const mode = LockUI.mode;
+  if (mode === 'setup') {
+    if (LockUI.first === null) { LockUI.first = lockEntry; lockEntry = ''; LockUI.render(); return; }
+    if (lockEntry !== LockUI.first) { toast('两次输入不一致,请重设'); LockUI.first = null; LockUI.shake(); return; }
+    const salt = randHex(16);
+    settings.lock = { h: await pinHash(lockEntry, salt), s: salt, t: Date.now() };
+    persistSettings(); renderLockSettings();
+    LockUI.close(); toast('隐私锁已开启');
+    return;
+  }
+  const ok = await verifyPin(lockEntry);
+  if (!ok) {
+    lockWrong++;
+    LockUI.shake();
+    if (lockWrong >= LOCK_MAX_WRONG) startLockWait(); else toast('PIN 不对');
+    return;
+  }
+  lockWrong = 0;
+  if (mode === 'unlock') { LockUI.close(); unlocked = true; runInitialRenders(); }
+  else if (mode === 'verify-change') { LockUI.open('setup'); }
+  else if (mode === 'verify-off') { delete settings.lock; persistSettings(); renderLockSettings(); LockUI.close(); toast('隐私锁已关闭'); }
+}
+function startLockWait() {
+  lockWaitUntil = Date.now() + LOCK_WAIT_MS;
+  clearInterval(lockWaitTimer);
+  lockWaitTimer = setInterval(() => {
+    const left = Math.ceil((lockWaitUntil - Date.now()) / 1000);
+    if (left <= 0) { clearInterval(lockWaitTimer); lockWaitUntil = 0; lockWrong = 0; $('#lock-wait').textContent = ''; return; }
+    $('#lock-wait').textContent = '错误次数过多,' + left + ' 秒后再试';
+  }, 250);
+}
+$('#lock-pad').addEventListener('click', e => {
+  const b = e.target.closest('.lock-key[data-k]');
+  if (b) LockUI.key(b.dataset.k);
+});
+$('#lock-submit').addEventListener('click', lockSubmit);
+$('#btn-lock-close').addEventListener('click', () => LockUI.close());
+$('#btn-lock-forgot').addEventListener('click', () => {
+  if (!confirm('忘记 PIN 将移除隐私锁并直接进入日记(此锁为轻度防护,任何拿到手机的人都可以这样重置)。继续?')) return;
+  if (!confirm('再次确认:移除隐私锁?')) return;
+  delete settings.lock; persistSettings(); renderLockSettings();
+  LockUI.close(); unlocked = true; runInitialRenders();
+  toast('隐私锁已重置,可在设置中重新开启');
+});
+
+function renderLockSettings() {
+  const on = !!settings.lock;
+  $('#btn-lock-setup').classList.toggle('hidden', on);
+  $('#lock-manage').classList.toggle('hidden', !on);
+}
+$('#btn-lock-setup').addEventListener('click', () => {
+  if (!(window.crypto && window.crypto.subtle)) { toast('当前环境不支持,请通过 HTTPS 访问'); return; }
+  LockUI.open('setup');
+});
+$('#btn-lock-change').addEventListener('click', () => LockUI.open('verify-change'));
+$('#btn-lock-off').addEventListener('click', () => LockUI.open('verify-off'));
+
+/* 后台超过 3 分钟自动上锁 */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { window.__hiddenAt = Date.now(); return; }
+  if (settings.lock && Date.now() - (window.__hiddenAt || 0) > 3 * 60 * 1000) LockUI.open('unlock');
+});
+
 /* ---------- PWA 安装 ---------- */
 let deferredPrompt = null;
 const btnInstall = $('#btn-install');
@@ -681,8 +875,11 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---------- 初始渲染 ---------- */
-renderToday();
-renderMemories();
+if (settings.lock) {
+  LockUI.open('unlock');   // 锁定时先不渲染内容,解锁后再渲染
+} else {
+  runInitialRenders();
+}
 </script>
 </body>
 </html>
